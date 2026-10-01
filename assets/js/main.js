@@ -28,6 +28,14 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  // ---- Logo du header : clic = on revoit l'animation d'intro
+  var brandLink = document.querySelector('.site-header .brand');
+  if (brandLink) {
+    brandLink.addEventListener('click', function () {
+      try { sessionStorage.removeItem('svh_intro_seen'); } catch (e) {}
+    });
+  }
+
   // Mark active nav link based on current page
   var current = window.location.pathname.split('/').pop() || 'index.html';
   document.querySelectorAll('.main-nav a[href]').forEach(function (link) {
@@ -102,4 +110,68 @@ document.addEventListener('DOMContentLoaded', function () {
     // Dernier filet : si jamais rien n'a marché, tout révéler après un délai.
     setTimeout(function () { revealEls.forEach(revealNow); }, 3000);
   }
+
+  // ---- Carrousel (sélection produits)
+  var carousels = Array.prototype.slice.call(document.querySelectorAll('.carousel'));
+  carousels.forEach(function (carousel) {
+    var track = carousel.querySelector('.carousel-track');
+    var prevBtn = carousel.querySelector('.carousel-arrow--prev');
+    var nextBtn = carousel.querySelector('.carousel-arrow--next');
+    var dotsWrap = carousel.parentNode.querySelector('.carousel-dots');
+    if (!track) return;
+
+    var cards = Array.prototype.slice.call(track.children);
+    var dots = [];
+
+    if (dotsWrap && cards.length > 1) {
+      cards.forEach(function (card, i) {
+        var dot = document.createElement('button');
+        dot.type = 'button';
+        dot.setAttribute('aria-label', 'Aller à la sélection ' + (i + 1));
+        dot.addEventListener('click', function () {
+          track.scrollTo({ left: card.offsetLeft, behavior: 'smooth' });
+        });
+        dotsWrap.appendChild(dot);
+      });
+      dots = Array.prototype.slice.call(dotsWrap.children);
+    }
+
+    function scrollByCard(dir) {
+      var first = cards[0];
+      var gap = first ? (cards[1] ? cards[1].offsetLeft - first.offsetLeft : first.getBoundingClientRect().width) : 300;
+      track.scrollBy({ left: dir * gap, behavior: 'smooth' });
+    }
+
+    if (prevBtn) prevBtn.addEventListener('click', function () { scrollByCard(-1); });
+    if (nextBtn) nextBtn.addEventListener('click', function () { scrollByCard(1); });
+
+    var updateTicking = false;
+    function updateState() {
+      updateTicking = false;
+      var maxScroll = track.scrollWidth - track.clientWidth - 2;
+      var atStart = track.scrollLeft <= 2;
+      var atEnd = track.scrollLeft >= maxScroll;
+      if (prevBtn) prevBtn.disabled = atStart;
+      if (nextBtn) nextBtn.disabled = maxScroll <= 0 ? true : atEnd;
+
+      if (dots.length) {
+        var activeIndex = 0;
+        var closest = Infinity;
+        cards.forEach(function (c, i) {
+          var diff = Math.abs(c.offsetLeft - track.scrollLeft);
+          if (diff < closest) { closest = diff; activeIndex = i; }
+        });
+        dots.forEach(function (d, i) { d.classList.toggle('is-active', i === activeIndex); });
+      }
+    }
+
+    track.addEventListener('scroll', function () {
+      if (!updateTicking) {
+        updateTicking = true;
+        window.requestAnimationFrame(updateState);
+      }
+    }, { passive: true });
+    window.addEventListener('resize', updateState);
+    updateState();
+  });
 });
